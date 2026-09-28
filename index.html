@@ -40,13 +40,14 @@ function compare(){return pre!=null&&post!=null?`<div class="compare"><div><smal
 
 const v3={};
 function vopts(id,arr,correct,mode){
-  return '<div class="choices" id="'+id+'">'+arr.map(function(x,i){return '<button class="choice" onclick="pickV3(\\''+id+'\\','+i+','+correct+',this,\\''+mode+'\\')">'+x+'</button>'}).join('')+'</div><div class="feedback" id="'+id+'F"></div>';
+  return '<div class="choices" id="'+id+'">'+arr.map(function(x,i){return '<button class="choice" data-qid="'+id+'" data-mode="'+mode+'" onclick="pickV3(this.dataset.qid,'+i+','+correct+',this,this.dataset.mode)">'+x+'</button>'}).join('')+'</div><div class="feedback" id="'+id+'F"></div>';
 }
 function pickV3(id,i,c,b,mode){
   if(v3[id]!==undefined)return;
   v3[id]={choice:i,ok:i===c};
   [...$(id).children].forEach(function(x,j){x.classList.add('locked');if(j===c)x.classList.add('correct');else if(j===i)x.classList.add('wrong')});
   const f=$(id+'F');f.className='feedback show';f.innerHTML=vfeedback(mode,i===c);
+  if($('summaryBox')) $('summaryBox').innerHTML=summaryV3();
 }
 function vfeedback(mode,ok){
   if(mode==='global') return ok?'✓ 抓到了核心意思。作者既提到风险，也没有主张全面禁止。':'先不用纠结。接下来我们会把几个影响理解的地方拆开。';
@@ -60,8 +61,9 @@ function vfeedback(mode,ok){
   if(mode==='segtransfer') return ok?'✓ 换了主语以后，你仍然认出了同一个结构。':'再听一次，目标不是逐词翻译，而是抓住 <span class="fr">ne pas être le seul à</span> 这一整块。';
   if(mode==='access1') return ok?'✓ 你从声音里直接认出了 <span class="fr">se fier à</span>。':'下一步先确认：这个表达是“不会”，还是“看得懂但听不出”。';
   if(mode==='know'){
-    if(i===0 && v3.access1 && !v3.access1.ok) return '<b>你不是不会这个表达。</b><br>看到 <span class="fr">se fier à</span> 能理解，但刚才从声音里没有认出来——典型的“看得懂，听不出”。';
-    if(i===0) return '✓ 这个表达本身已经认识。';
+    const choice=v3.know1 ? v3.know1.choice : -1;
+    if(choice===0 && v3.access1 && !v3.access1.ok) return '<b>你不是不会这个表达。</b><br>看到 <span class="fr">se fier à</span> 能理解，但刚才从声音里没有认出来——典型的“看得懂，听不出”。';
+    if(choice===0) return '✓ 这个表达本身已经认识。';
     return '<b>这里不只是听力问题。</b><br><span class="fr">se fier à</span> = 信任、依赖。先把表达学熟，再训练从声音中快速认出。';
   }
   if(mode==='access3') return ok?'✓ 现在目标是让 <span class="fr">se fier à</span> 的声音直接连到“信任 / 依赖”的意思。':'再听一次，注意不要先在脑中拼写法语再翻译。';
