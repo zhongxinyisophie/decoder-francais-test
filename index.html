@@ -2,6 +2,7 @@
 <style>
 :root{--bg:#f5f3ee;--card:#fff;--text:#202623;--muted:#6c756f;--line:#e6e0d6;--accent:#245a49;--soft:#e8f1ed;--ok:#176a49;--bad:#a2433f}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Noto Sans SC",Arial,sans-serif}.app{max-width:680px;margin:auto;padding:18px 14px 80px}.top{display:flex;justify-content:space-between;align-items:center}.brand{font-weight:850}.badge{font-size:12px;background:var(--soft);color:var(--accent);padding:6px 9px;border-radius:999px}.hero{padding:28px 4px 14px}h1{font-size:30px;margin:4px 0}h2{margin:5px 0}h3{margin:0 0 10px}.muted{color:var(--muted);line-height:1.55}.card,.drill{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 8px 28px rgba(30,40,35,.05)}.drill{border-radius:14px;box-shadow:none}.drillhead{display:flex;gap:8px;align-items:center;margin-bottom:8px}.num{width:25px;height:25px;border-radius:50%;background:var(--soft);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:12px}audio{width:100%;margin:9px 0}.q{font-weight:760;margin:12px 0 8px}.choices{display:grid;gap:8px}.choice,.btn,.mini,.jump{appearance:none;border:1px solid var(--line);background:#fff;border-radius:12px;padding:11px 12px;text-align:left;font-size:14px;color:var(--text)}.choice:active,.btn:active{transform:scale(.99)}.choice.correct{border-color:var(--ok);background:#edf7f2}.choice.wrong{border-color:var(--bad);background:#faeeee}.choice.locked{pointer-events:none}.feedback{display:none;margin-top:9px;padding:10px 12px;border-radius:11px;background:#f6f4ef;line-height:1.5;font-size:14px}.feedback.show{display:block}.fr{font-family:Georgia,"Times New Roman",serif}.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.btn{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;text-align:center}.btn.secondary{background:#fff;color:var(--accent)}.mini{padding:7px 10px;font-size:12px}.hidden{display:none}.stephead{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}.progress{height:6px;background:#e4e0d8;border-radius:99px;margin:10px 0 16px;overflow:hidden}.progress i{height:100%;display:block;background:var(--accent);width:0}.scale{display:flex;gap:6px}.scale button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 2px}.scale button.sel{background:var(--accent);color:#fff}.input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:16px}details{margin-top:12px}summary{cursor:pointer;color:var(--accent);font-weight:700}.jumpgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.jump{text-align:center}.compare{display:flex;justify-content:space-around;align-items:center;background:var(--soft);padding:14px;border-radius:14px;margin-top:14px}.compare b{font-size:25px}.pill{display:inline-block;background:var(--soft);color:var(--accent);font-size:12px;padding:5px 8px;border-radius:99px;margin-bottom:8px}@media(max-width:430px){.jumpgrid{grid-template-columns:1fr}}
 .kicker{font-size:13px;font-weight:800;color:var(--accent);letter-spacing:.02em}.why{background:var(--soft);border-radius:12px;padding:11px 12px;margin-top:10px;line-height:1.55}.micro{font-size:12px;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.04em}.resultgrid{display:grid;gap:9px;margin-top:12px}.resultitem{border:1px solid var(--line);border-radius:12px;padding:12px}.state{display:inline-block;font-size:12px;font-weight:800;padding:4px 8px;border-radius:999px;background:var(--soft);color:var(--accent);margin-bottom:6px}.note{font-size:13px;line-height:1.55;color:var(--muted)}.sep{height:1px;background:var(--line);margin:15px 0}
+.synth{width:100%;margin:9px 0;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--accent);font-weight:700;text-align:left;cursor:pointer}.synth:active{transform:scale(.99)}
 </style></head><body><div class="app">
 <div class="top"><div class="brand">解码法语听力</div><div class="badge">B1–B2 · 中文母语者</div></div>
 <section id="home"><div class="hero"><div class="pill">Décoder l’écoute · L’IA à l’école</div><h1>单词都认识，为什么还是听不懂？</h1><p class="muted">这节课不会只告诉你答对了几题。我们会把几个容易从耳朵里“溜过去”的地方拆开，看看你究竟卡在哪里，再针对练习。</p></div><div class="card"><h3>约 12–15 分钟</h3><p class="muted">完整听 → 找卡点 → 拆开练 → 换句迁移 → 再听</p><button class="btn" onclick="start()">开始解码</button></div><div id="homeJump" class="hidden"></div></section>
@@ -18,6 +19,21 @@ Pour autant, interdire complètement l’IA à l’école ne semble pas forcéme
 const STEPS=['第一次完整听','连续语流','熟词听辨','逻辑路标','长句处理','时态信号','最终复听 · 听力小结'];let step=0,pre=null,post=null;const ans={};
 const $=id=>document.getElementById(id);
 function audio(k,label){return `<div><small class="muted">${label}</small><audio controls playsinline preload="metadata" src="${AUDIO[k]}"></audio></div>`}
+function synth(text,label){
+  const encoded=encodeURIComponent(text);
+  return '<div><small class="muted">'+label+'</small><button class="synth" onclick="speakFr(\''+encoded+'\')">▶ 播放句子</button></div>';
+}
+function speakFr(encoded){
+  const text=decodeURIComponent(encoded);
+  if(!('speechSynthesis' in window)){alert('当前浏览器不支持语音播放。请使用 Chrome、Edge 或 Safari。');return;}
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='fr-FR';u.rate=.92;u.pitch=1;
+  const voices=window.speechSynthesis.getVoices();
+  const fr=voices.find(v=>/^fr[-_]/i.test(v.lang))||voices.find(v=>/français|french/i.test(v.name));
+  if(fr)u.voice=fr;
+  window.speechSynthesis.speak(u);
+}
 function opts(id,arr,correct,exp){const safeExp=encodeURIComponent(exp);return `<div class="choices" id="${id}">${arr.map((x,i)=>`<button class="choice" onclick="pick('${id}',${i},${correct},this,'${safeExp}')">${x}</button>`).join('')}</div><div class="feedback" id="${id}F"></div>`}
 function pick(id,i,c,b,expEncoded){if(ans[id]!==undefined)return;ans[id]=i;[...$(id).children].forEach((x,j)=>{x.classList.add('locked');if(j===c)x.classList.add('correct');else if(j===i)x.classList.add('wrong')});const ok=i===c;const f=$(id+'F');f.className='feedback show';const exp=decodeURIComponent(expEncoded);f.innerHTML=(ok?'✓ ':'再听一次。')+exp}
 function drill(n,title,body){return `<div class="drill"><div class="drillhead"><span class="num">${n}</span><b>${title}</b></div>${body}</div>`}
@@ -92,29 +108,29 @@ function flowV3(){
   return '<div class="card"><div class="micro">微技能 1 · 连续语流</div><h3>几个词明明认识，为什么黏在一起就听不出来？</h3><p class="muted">目标：<span class="fr">ne sont pas les seuls à</span></p>'+
   drill(1,'先听声音',audio('chunk','真人原文片段')+'<div class="q">你听到的是哪一组？</div>'+vopts('seg1',['ne sont pas seuls à','ne sont pas les seuls à','ne sont plus les seuls à','sont les seuls à'],1,'seg1'))+
   drill(2,'聚焦重听',audio('chunk','再次听同一片段，只盯住目标结构')+'<div class="q">现在再选一次：</div>'+vopts('seg2',['ne sont pas seuls à','ne sont pas les seuls à','ne sont plus les seuls à','sont les seuls à'],1,'seg2'))+
-  drill(3,'听清小差别',audio('chunk_contrast','对比句')+'<div class="q">和原来的结构相比，关键变化是什么？</div>'+vopts('seg3',['仍然是 pas','pas 变成了 plus','les 消失了','没有区别'],1,'segcontrast'))+
-  drill(4,'换一句还能认出来吗？',audio('chunk_transfer','迁移句')+'<div class="q">你听到了哪个结构？</div>'+vopts('seg4',['ne pas être le seul à','ne plus être seul à','être le premier à','avoir du mal à'],0,'segtransfer'))+
+  drill(3,'听清小差别',synth('Les élèves ne sont plus les seuls à devoir s’adapter.','对比句 · 合成语音')+'<div class="q">和原来的结构相比，关键变化是什么？</div>'+vopts('seg3',['仍然是 pas','pas 变成了 plus','les 消失了','没有区别'],1,'segcontrast'))+
+  drill(4,'换一句还能认出来吗？',synth('Les parents ne sont pas les seuls à s’inquiéter.','迁移句 · 合成语音')+'<div class="q">你听到了哪个结构？</div>'+vopts('seg4',['ne pas être le seul à','ne plus être seul à','être le premier à','avoir du mal à'],0,'segtransfer'))+
   '<div class="why"><b>这一模块练什么？</b><br>不是多背一个句型，而是学会在连续语流里把熟悉的词重新切出来。</div></div>';
 }
 function accessV3(){
   return '<div class="card"><div class="micro">微技能 2 · 熟词听辨</div><h3>这个词我明明认识，为什么刚才没有听出来？</h3>'+
   drill(1,'只听，不看文字',audio('sefier','真人原文片段')+'<div class="q">你实际听到的是哪个表达？</div>'+vopts('access1',['faire confiance de','se fier à','vérifier à','compter de'],1,'access1'))+
   drill(2,'看到以后，你认识吗？','<p class="fr" style="font-size:21px"><b>se fier à</b></p><div class="q">看到这个表达，你知道是什么意思吗？</div>'+vopts('know1',['知道：信任、依赖','好像见过，但不确定','不认识'],0,'know'))+
-  drill(3,'换一个语境',audio('sefier_transfer','迁移句')+'<div class="q">这句话最接近：</div>'+vopts('access3',['最好只相信一个来源。','最好不要只依赖一个来源。','最好停止查找资料。','最好只使用 AI。'],1,'access3'))+
+  drill(3,'换一个语境',synth('Il vaut mieux ne pas se fier à une seule source.','迁移句 · 合成语音')+'<div class="q">这句话最接近：</div>'+vopts('access3',['最好只相信一个来源。','最好不要只依赖一个来源。','最好停止查找资料。','最好只使用 AI。'],1,'access3'))+
   '<div class="why"><b>核心目标：</b>让声音 <span class="fr">se fier à</span> 直接连到意思，而不是先在脑中拼写出来再翻译。</div></div>';
 }
 function logicV3(){
   return '<div class="card"><div class="micro">微技能 3 · 逻辑路标</div><h3>词听到了，句子的方向跟上了吗？</h3><p class="muted">前面作者刚说：AI 的回答可能有错误。</p>'+
   drill(1,'先判断作者往哪边说',audio('pourautant','真人原文片段')+'<div class="q">接下来的意思更接近：</div>'+vopts('logic1',['所以学校应该全面禁止 AI。','AI 有风险，但这并不意味着全面禁止就是最好的办法。','因为学校还没有准备好。','AI 其实没有风险。'],1,'logic1'))+
   drill(2,'找出“转方向”的声音',audio('pourautant','再次听开头')+'<div class="q">你听到的连接表达是：</div>'+vopts('logic2',['pourtant','pour longtemps','pour autant','d’autant plus'],2,'logic2'))+
-  drill(3,'近邻对比',audio('enrevanche','对比句')+'<div class="q">这次听到的是：</div>'+vopts('logic3',['pour autant','d’autant que','en revanche','voire'],2,'logic3'))+
+  drill(3,'近邻对比',synth('L’intelligence artificielle peut être utile. En revanche, elle n’est pas toujours fiable.','对比句 · 合成语音')+'<div class="q">这次听到的是：</div>'+vopts('logic3',['pour autant','d’autant que','en revanche','voire'],2,'logic3'))+
   '<div class="why"><b>听连接词不是为了背翻译。</b><br>听到以后要马上问：作者接下来是在反驳、限制，还是换一个角度？</div></div>';
 }
 function longV3(){
   return '<div class="card"><div class="micro">微技能 4 · 长句处理</div><h3>每个词都懂，为什么整句还是跟不上？</h3>'+
   drill(1,'先整句听',audio('nonsel','真人原文片段')+'<div class="q">作者说 AI：</div>'+vopts('long1',['只能帮助学生学习。','主要用来替代教师。','既可以帮助学习，也可以促进思考，但前提是使用得当。','只有考试时才有用。'],2,'long1'))+
   drill(2,'拆成三个意思块','<div class="q">① <span class="fr">non seulement aider les élèves à apprendre</span></div>'+vopts('longa',['帮助学生学习','阻止学生学习','让学生独立考试'],0,'longa')+'<div class="q">② <span class="fr">mais aussi les pousser à réfléchir</span></div>'+vopts('longb',['还可以推动他们思考','但会减少思考','只帮助教师'],0,'longb')+'<div class="q">③ <span class="fr">à condition qu’elle soit bien utilisée</span></div>'+vopts('longc',['前提是使用得当','前提是禁止使用','没有任何条件'],0,'longc'))+
-  drill(3,'听到前半个结构，预测后半个',audio('nonsel_transfer','迁移句')+'<div class="q">听到 <span class="fr">non seulement</span>，后面最值得等待的是：</div>'+vopts('predict1',['en revanche','pour autant','mais aussi','malgré'],2,'predict'))+
+  drill(3,'听到前半个结构，预测后半个',synth('Cette méthode permet non seulement de gagner du temps, mais aussi de mieux comprendre le texte.','迁移句 · 合成语音')+'<div class="q">听到 <span class="fr">non seulement</span>，后面最值得等待的是：</div>'+vopts('predict1',['en revanche','pour autant','mais aussi','malgré'],2,'predict'))+
   drill(4,'一个很小的语法声音',audio('nonsel','再次听原句')+'<div class="q">在 <span class="fr">à condition qu’elle…</span> 后你听到：</div>'+vopts('soit1',['est','soit','sera','serait'],1,'soit'))+
   '<div class="why"><b>长句不要逐词翻译。</b><br>如果三个小块都懂、整句却错，真正需要练的是“按意思块往前走”。</div></div>';
 }
@@ -122,8 +138,8 @@ function tenseV3(){
   return '<div class="card"><div class="micro">微技能 5 · 时态信号</div><h3>法语会把“时间关系”藏进动词里</h3><p class="muted">中文常依靠时间词和上下文；法语还经常通过动词形式直接编码时间关系。听漏一个变化，整句顺序就可能理解错。</p>'+
   drill(1,'先把声音听准',audio('futur','真人原文片段')+'<div class="q">你听到的是：</div>'+vopts('tense1',['apprendront','auront appris','ont appris','auraient appris'],1,'tense1'))+
   drill(2,'再听时间关系',audio('futur','完整目标句')+'<div class="q">作者设想的顺序是：</div>'+vopts('tense2',['AI 先成为学习工具，学生以后再学核实信息。','学生先学会核实和谨慎使用，然后 AI 才可能真正成为学习工具。','两件事没有先后关系。','这是在描述过去。'],1,'tense2'))+
-  drill(3,'两个很像的声音',audio('futur_simple','先听 futur simple 的对比句')+audio('futur_transfer','再听完成性更强的迁移句')+'<div class="q">哪一种表达更明确强调“完成以后，再进入下一步”？</div>'+vopts('tense3',['第一种','第二种','两种完全一样','都不是'],1,'tense3'))+
-  drill(4,'换一句，还能理解吗？',audio('futur_transfer','迁移句')+'<div class="q">哪件事先发生？</div>'+vopts('tense4',['核对答案','完成练习','同时发生'],1,'tense4'))+
+  drill(3,'两个很像的声音',synth('Quand vous terminerez l’exercice, vous pourrez vérifier vos réponses.','对比句 · 合成语音')+synth('Quand vous aurez terminé l’exercice, vous pourrez vérifier vos réponses.','迁移句 · 合成语音')+'<div class="q">哪一种表达更明确强调“完成以后，再进入下一步”？</div>'+vopts('tense3',['第一种','第二种','两种完全一样','都不是'],1,'tense3'))+
+  drill(4,'换一句，还能理解吗？',synth('Quand vous aurez terminé l’exercice, vous pourrez vérifier vos réponses.','迁移句 · 合成语音')+'<div class="q">哪件事先发生？</div>'+vopts('tense4',['核对答案','完成练习','同时发生'],1,'tense4'))+
   '<div class="why"><b>语法名称不是终点。</b><br><span class="fr">auront appris</span> 叫 futur antérieur，但听力里更重要的是：一听到它，就能马上建立动作先后。</div></div>';
 }
 function statusBlock(title,state,detail){
