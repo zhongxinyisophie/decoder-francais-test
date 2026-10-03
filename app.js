@@ -204,7 +204,19 @@
     const q = questionIndex[id];
     if (!q || q.type !== "mcq") return;
     ans[id] = index;
-    render();
+    const group = $(id);
+    if (group) {
+      [...group.children].forEach((button, i) => {
+        button.classList.add("locked");
+        if (i === q.correct) button.classList.add("correct");
+        else if (i === index) button.classList.add("wrong");
+      });
+    }
+    const feedback = $(id + "F");
+    if (feedback) {
+      feedback.className = "feedback show";
+      feedback.innerHTML = (index === q.correct ? "✓ " : "再听一次。") + (q.feedback || "");
+    }
   }
 
   function checkInput(id) {
@@ -215,8 +227,18 @@
     const raw = el ? el.value : "";
     inputValues[id] = raw;
     const value = norm(raw);
-    ans[id] = (q.answers || []).some(a => norm(a) === value);
-    render();
+    const ok = (q.answers || []).some(a => norm(a) === value);
+    ans[id] = ok;
+    if (el) el.disabled = true;
+    const checkButton = document.querySelector('[data-check-input="' + CSS.escape(id) + '"]');
+    if (checkButton) checkButton.disabled = true;
+    const feedback = $(id + "F");
+    if (feedback) {
+      const success = q.successHtml || ('✓ <span class="fr">' + escapeHTML(q.displayAnswer || q.answers[0]) + '</span>');
+      const failure = q.failureHtml || ('答案：<span class="fr">' + escapeHTML(q.displayAnswer || q.answers[0]) + '</span>');
+      feedback.className = "feedback show";
+      feedback.innerHTML = ok ? success : failure;
+    }
   }
 
   function rate(kind, value, button) {
