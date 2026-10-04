@@ -1,0 +1,671 @@
+(function decoderApp() {
+  "use strict";
+  let LESSON = null;
+  const CATALOG = window.DECODER_CATALOG;
+  if (!CATALOG || !Array.isArray(CATALOG.materials)) throw new Error("Material catalog not loaded.");
+
+  let step = 0;
+  let pre = null;
+  let post = null;
+  let hasCompletedSession = false;
+  let trainingMode = "lesson";
+  let activeSkillKey = null;
+  let activeMaterialId = null;
+  const loadedLessonIds = new Set();
+  const ans = Object.create(null);
+  const inputValues = Object.create(null);
+  const questionIndex = Object.create(null);
+  const questionAudioRef = Object.create(null);
+  let sessionMetrics = null;
+  const STORAGE_KEY = "decoder-francais-diagnostics-v1";
+
+  const SKILL_TAXONOMY = [
+    {key:"groupes_de_mots",cn:"听语块",fr:"Groupes de mots",desc:"把连续语流切成有意义的声音单位。"},
+    {key:"liaison_enchainement",cn:"连读衔接",fr:"Liaison / enchaînement",desc:"识别跨词边界产生的声音连接。"},
+    {key:"francais_oral",cn:"真实口语",fr:"Français oral",desc:"识别省略、弱化、缩略和真实口语节奏。"},
+    {key:"sens_en_contexte",cn:"语境词义",fr:"Sens en contexte",desc:"根据上下文确定表达在这里真正是什么意思。"},
+    {key:"structures",cn:"听句型",fr:"Structures",desc:"利用结构锚点组织信息并预测后半句。"},
+    {key:"temps_verbaux",cn:"听时态",fr:"Temps verbaux",desc:"从声音识别动词形式和动作时间关系。"},
+    {key:"negation",cn:"听否定",fr:"Négation",desc:"在真实语流里抓住否定词和否定范围。"},
+    {key:"connecteurs",cn:"听逻辑",fr:"Connecteurs",desc:"追踪转折、因果、让步、递进等论证方向。"}
+  ];
+
+  function readHistory() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return {version:1,sessions:[]};
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.sessions)) return {version:1,sessions:[]};
+      return parsed;
+    } catch (_) {
+      return {version:1,sessions:[]};
+    }
+  }
+
+  function writeHistory(history) {
+    try {
+      const capped = {version:1,sessions:(history.sessions || []).slice(-100)};
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(capped));
+    } catch (_) {}
+  }
+
+  function beginSession(mode, skillKey) {
+    sessionMetrics = {
+      id: Date.now().toString(36),
+      startedAt: new Date().toISOString(),
+      materialId: activeMaterialId,
+      mode,
+      skillKey: skillKey || null,
+      playback: {},
+      questions: {}
+    };
+  }
+
+  function playbackCount(ref) {
+    return sessionMetrics && ref ? (sessionMetrics.playback[ref] || 0) : 0;
+  }
+
+  function updatePlaybackCountUI(ref) {
+    document.querySelectorAll('[data-playcount-ref="'+CSS.escape(ref)+'"]').forEach(el => {
+      el.textContent = playbackCount(ref) + " 次";
+    });
+  }
+
+  function recordPlay(ref) {
+    if (!sessionMetrics || !ref) return;
+    sessionMetrics.playback[ref] = (sessionMetrics.playback[ref] || 0) + 1;
+    updatePlaybackCountUI(ref);
+  }
+
+  function recordQuestionAttempt(id, correct) {
+    if (!sessionMetrics || sessionMetrics.questions[id]) return;
+    const q = questionIndex[id] || {};
+    const ref = questionAudioRef[id] || null;
+    sessionMetrics.questions[id] = {
+      skillKey: q.primarySkill || (LESSON && LESSON.steps[step] ? LESSON.steps[step].skillKey || null : null),
+      correct: !!correct,
+      playbackRef: ref,
+      playsBeforeAnswer: ref ? playbackCount(ref) : 0
+    };
+  }
+
+  function blockPlaybackRef(b) {
+    if (!b) return null;
+    if (b.type === "audio") return "audio:" + String(b.key || "") + ":" + String(b.label || "");
+    if (b.type === "synth") {
+      let h = 0;
+      const text = String(b.text || "");
+      for (let i=0;i<text.length;i++) h = ((h << 5) - h + text.charCodeAt(i)) | 0;
+      return "synth:" + Math.abs(h);
+    }
+    return null;
+  }
+
+  const $ = id => document.getElementById(id);
+  const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[ch]));
+  const escapeAttr = escapeHTML;
+
+  function indexBlocks(blocks) {
+    let lastRef = null;
+    (blocks || []).forEach(b => {
+      const ref = blockPlaybackRef(b);
+      if (ref) lastRef = ref;
+      if (b && b.id && (b.type === "mcq" || b.type === "input")) {
+        questionIndex[b.id] = b;
+        if (lastRef) questionAudioRef[b.id] = lastRef;
+      }
+    });
+  }
+
+  function resetQuestionIndex() {
+    Object.keys(questionIndex).forEach(k => delete questionIndex[k]);
+    Object.keys(questionAudioRef).forEach(k => delete questionAudioRef[k]);
+  }
+
+  function setupLesson(lesson, materialId) {
+    LESSON = lesson;
+    activeMaterialId = materialId || lesson.id || null;
+    resetQuestionIndex();
+    Object.keys(ans).forEach(k => delete ans[k]);
+    Object.keys(inputValues).forEach(k => delete inputValues[k]);
+    pre = null;
+    post = null;
+    LESSON.steps.forEach(s => {
+      indexBlocks(s.blocks);
+      (s.drills || []).forEach(d => indexBlocks(d.blocks));
+    });
+    $("lessonName").textContent = LESSON.meta.title;
+    $("resultLessonName").textContent = LESSON.meta.title;
+    $("lessonBadge").textContent = `${LESSON.meta.level} · ${LESSON.meta.audience}`;
+    jumps();
+  }
+
+  function materialById(id) {
+    return CATALOG.materials.find(m => m.id === id) || null;
+  }
+
+  function loadMaterial(id) {
+    const material = materialById(id);
+    if (!material) return Promise.reject(new Error("Material not found: " + id));
+    if (LESSON && activeMaterialId === id) return Promise.resolve(LESSON);
+
+    return new Promise((resolve, reject) => {
+      window.LESSON = null;
+      const script = document.createElement("script");
+      script.src = material.lessonScript + (material.lessonScript.includes("?") ? "&" : "?") + "catalog=" + encodeURIComponent(CATALOG.version || 1);
+      script.async = true;
+      script.onload = () => {
+        if (!window.LESSON) {
+          reject(new Error("Lesson script loaded but no lesson data was registered."));
+          return;
+        }
+        setupLesson(window.LESSON, id);
+        loadedLessonIds.add(id);
+        resolve(LESSON);
+      };
+      script.onerror = () => reject(new Error("Could not load lesson data: " + material.lessonScript));
+      document.head.appendChild(script);
+    });
+  }
+
+  function norm(s) {
+    return (s || "").trim().toLowerCase().normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[’']/g, "'")
+      .replace(/[^a-z' -]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function audioBlock(b) {
+    const src = LESSON && LESSON.audio ? (LESSON.audio[b.key] || "") : "";
+    const ref = blockPlaybackRef(b);
+    return `<div class="trainingaudio"><div class="audiohead"><small class="muted">${escapeHTML(b.label || "")}</small><span class="listenstat">已播放 <b data-playcount-ref="${escapeAttr(ref)}">${playbackCount(ref)} 次</b></span></div><audio controls playsinline preload="metadata" data-audio-ref="${escapeAttr(ref)}" src="${escapeAttr(src)}"></audio><div class="audiotools"><button type="button" data-audio-action="play" data-audio-ref="${escapeAttr(ref)}">▶ 播放</button><button type="button" data-audio-action="replay" data-audio-ref="${escapeAttr(ref)}">↻ 再听</button><button type="button" data-audio-action="back" data-audio-ref="${escapeAttr(ref)}">−3 秒</button><button type="button" data-audio-action="speed" data-speed=".8" data-audio-ref="${escapeAttr(ref)}">0.8×</button><button type="button" data-audio-action="speed" data-speed="1" data-audio-ref="${escapeAttr(ref)}">1×</button></div></div>`;
+  }
+
+  function synthBlock(b) {
+    const ref = blockPlaybackRef(b);
+    const encoded = escapeAttr(encodeURIComponent(b.text || ""));
+    return `<div class="trainingaudio"><div class="audiohead"><small class="muted">${escapeHTML(b.label || "")}</small><span class="listenstat">已播放 <b data-playcount-ref="${escapeAttr(ref)}">${playbackCount(ref)} 次</b></span></div><div class="synthtools"><button type="button" class="synth compact" data-speak="${encoded}" data-speak-ref="${escapeAttr(ref)}" data-speak-rate=".92">▶ 正常播放</button><button type="button" class="synth compact secondarysynth" data-speak="${encoded}" data-speak-ref="${escapeAttr(ref)}" data-speak-rate=".76">0.8× 慢速</button></div></div>`;
+  }
+
+  function mcqBlock(b) {
+    const answered = ans[b.id] !== undefined;
+    const selected = ans[b.id];
+    const buttons = b.options.map((option, i) => {
+      const classes = ["choice"];
+      if (answered) {
+        classes.push("locked");
+        if (i === b.correct) classes.push("correct");
+        else if (i === selected) classes.push("wrong");
+      }
+      return `<button type="button" class="${classes.join(" ")}" data-choice-id="${escapeAttr(b.id)}" data-choice-index="${i}">${escapeHTML(option)}</button>`;
+    }).join("");
+    const ok = answered && selected === b.correct;
+    const feedback = answered ? `<div class="feedback show" id="${escapeAttr(b.id)}F">${ok ? "✓ " : "再听一次。"}${b.feedback || ""}</div>` : `<div class="feedback" id="${escapeAttr(b.id)}F"></div>`;
+    return `<div class="q">${b.question || ""}</div><div class="choices" id="${escapeAttr(b.id)}">${buttons}</div>${feedback}`;
+  }
+
+  function inputBlock(b) {
+    const answered = ans[b.id] !== undefined;
+    const raw = inputValues[b.id] || "";
+    let feedback = "";
+    if (answered) {
+      const ok = !!ans[b.id];
+      const success = b.successHtml || `✓ <span class="fr">${escapeHTML(b.displayAnswer || b.answers[0])}</span>`;
+      const failure = b.failureHtml || `答案：<span class="fr">${escapeHTML(b.displayAnswer || b.answers[0])}</span>`;
+      feedback = `<div class="feedback show" id="${escapeAttr(b.id)}F">${ok ? success : failure}</div>`;
+    } else {
+      feedback = `<div class="feedback" id="${escapeAttr(b.id)}F"></div>`;
+    }
+    return `<div class="q">${b.question || ""}</div><input id="${escapeAttr(b.id)}I" class="input" data-input-value="${escapeAttr(b.id)}" value="${escapeAttr(raw)}" placeholder="${escapeAttr(b.placeholder || "")}" ${answered ? "disabled" : ""}><div class="btnrow"><button type="button" class="btn" data-check-input="${escapeAttr(b.id)}" ${answered ? "disabled" : ""}>检查</button></div>${feedback}`;
+  }
+
+  function scaleBlock(b) {
+    const val = b.kind === "pre" ? pre : post;
+    const values = b.values || [20,40,60,80,100];
+    return `<div class="q">${b.question || ""}</div><div class="scale">${values.map(v => `<button type="button" class="${val === v ? "sel" : ""}" data-rate-kind="${escapeAttr(b.kind)}" data-rate-value="${v}">${v}%</button>`).join("")}</div>`;
+  }
+
+  function compareBlock() {
+    if (pre != null && post != null) {
+      return `<div id="cmp"><div class="compare"><div><small>第一次</small><br><b>${pre}%</b></div><div>→</div><div><small>最终</small><br><b>${post}%</b></div></div></div>`;
+    }
+    return `<div id="cmp"><p class="muted">选择前后听懂比例后，这里显示变化。</p></div>`;
+  }
+
+  function isCorrect(id) {
+    if (ans[id] === undefined) return null;
+    const q = questionIndex[id];
+    if (!q) return null;
+    if (q.type === "mcq") return ans[id] === q.correct;
+    if (q.type === "input") return !!ans[id];
+    return null;
+  }
+
+  function skillStatus(items) {
+    const done = items.filter(x => x !== null);
+    if (!done.length) return {s:"未完成", n:"完成本模块后这里会显示本次结果。"};
+    if (done.length < items.length) return {s:"进行中", n:"题目还没有全部完成，暂不做判断。"};
+    const score = done.filter(Boolean).length;
+    if (score === items.length) return {s:"本次表现较稳", n:"这一次的识别、对比和迁移都完成得较好；还需要更多素材验证能否稳定迁移。"};
+    if (score >= Math.ceil(items.length * 2 / 3)) return {s:"基本识别", n:"大部分已经能跟上，但仍有一个环节值得继续练。"};
+    return {s:"建议继续训练", n:"这一次仍有明显漏听或误判，建议换语境继续练，而不是只重复记答案。"};
+  }
+
+  function skillSummary() {
+    return `<div class="skillsum">${LESSON.skills.map(skill => {
+      const status = skillStatus(skill.items.map(isCorrect));
+      let note = status.n;
+      (skill.noteRules || []).forEach(rule => {
+        const matches = Object.entries(rule.when || {}).every(([id, expected]) => isCorrect(id) === expected);
+        if (matches) note = rule.note;
+      });
+      return `<div class="skillrow"><div class="skilltop"><b>${escapeHTML(skill.name)}</b><span class="skillstate">${escapeHTML(status.s)}</span></div><div class="skillnote">${escapeHTML(note)}</div></div>`;
+    }).join("")}</div>`;
+  }
+
+  function renderBlock(b) {
+    switch (b.type) {
+      case "audio": return audioBlock(b);
+      case "synth": return synthBlock(b);
+      case "mcq": return mcqBlock(b);
+      case "input": return inputBlock(b);
+      case "scale": return scaleBlock(b);
+      case "compare": return compareBlock();
+      case "paragraph": return `<p class="muted">${b.html || ""}</p>`;
+      case "heading": return `<h3 style="margin-top:18px">${b.html || ""}</h3>`;
+      case "summary": return skillSummary();
+      case "transcript": return `<details><summary>${escapeHTML(b.summary || "查看完整法语文字稿")}</summary><p class="fr" style="white-space:pre-line;line-height:1.7">${escapeHTML(LESSON.transcript || "")}</p></details>`;
+      default: return "";
+    }
+  }
+
+  function renderBlocks(blocks) {
+    return (blocks || []).map(renderBlock).join("");
+  }
+
+  function renderStep(s) {
+    let body = `<div class="card"><h3>${escapeHTML(s.heading || "")}</h3>`;
+    if (s.blocks) body += renderBlocks(s.blocks);
+    (s.drills || []).forEach((d, i) => {
+      body += `<div class="drill"><div class="drillhead"><span class="num">${i + 1}</span><b>${escapeHTML(d.title)}</b></div>${renderBlocks(d.blocks)}</div>`;
+    });
+    return body + "</div>";
+  }
+
+  function render() {
+    const s = LESSON.steps[step];
+    $("title").textContent = s.title;
+    $("content").innerHTML = renderStep(s);
+
+    if (trainingMode === "skill") {
+      const skill = activeSkill();
+      const questionCount = skill ? skill.items.length : 3;
+      $("count").textContent = "专项训练 · " + questionCount + " 题";
+      $("bar").style.width = "100%";
+      $("prevBtn").classList.add("hidden");
+      $("nextBtn").classList.add("hidden");
+      $("finishBtn").classList.remove("hidden");
+      $("finishBtn").textContent = "完成专项训练";
+    } else {
+      $("count").textContent = `${step + 1} / ${LESSON.steps.length}`;
+      $("bar").style.width = `${(step + 1) / LESSON.steps.length * 100}%`;
+      const isLast = step === LESSON.steps.length - 1;
+      $("prevBtn").classList.toggle("hidden", step === 0);
+      $("nextBtn").classList.toggle("hidden", isLast);
+      $("finishBtn").classList.toggle("hidden", !isLast);
+      $("finishBtn").textContent = "完成本次训练";
+    }
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  function renderMaterialLibrary() {
+    const target = $("materialLibrary");
+    if (!target) return;
+    target.innerHTML = CATALOG.materials.map(material => {
+      const topics = (material.topics || []).map(t => '<span class="tag">'+escapeHTML(t)+'</span>').join("");
+      const skills = (material.skillLabels || []).map(t => '<span class="tag skilltag">'+escapeHTML(t)+'</span>').join("");
+      return '<div class="materialcard"><div class="materialtop"><span class="pill">'+escapeHTML(material.level || CATALOG.defaultLevel || "")+'</span><span class="duration">'+escapeHTML((material.audioSeconds || "") + " 秒 · " + (material.duration || ""))+'</span></div><h3>'+escapeHTML(material.title)+'</h3><p class="muted">'+escapeHTML(material.description || "")+'</p><div class="tagrow">'+topics+'</div><div class="tagrow skills">'+skills+'</div><button type="button" class="btn wide" data-start-material="'+escapeAttr(material.id)+'">开始这段训练</button></div>';
+    }).join("");
+  }
+
+  function renderSkillLibrary() {
+    $("skillLibrary").innerHTML = SKILL_TAXONOMY.map(skill => {
+      const matches = CATALOG.materials.filter(m => (m.skills || []).includes(skill.key));
+      const has = matches.length > 0;
+      const countText = has ? (matches.length + " 段素材") : "待扩充";
+      const inner = '<div class="skillcardtop"><div><b>'+escapeHTML(skill.cn)+'</b><div class="skillfr">'+escapeHTML(skill.fr)+'</div></div><span class="skillcount">'+countText+'</span></div><div class="skilldesc">'+escapeHTML(skill.desc)+'</div>'+(has ? '<div class="skillcta">进入专项练习 →</div>' : '');
+      return has
+        ? '<button type="button" class="skillcard available" data-start-skill="'+escapeAttr(skill.key)+'">'+inner+'</button>'
+        : '<div class="skillcard">'+inner+'</div>';
+    }).join("");
+  }
+
+  function renderHomeProfile() {
+    const target = $("profileHome");
+    if (!target) return;
+    const agg = aggregateSkillStats();
+    if (!agg.sessionCount) {
+      target.innerHTML = '<div class="profileempty"><b>完成一次训练后，这里会开始积累你的听力画像。</b><div class="muted">我们会记录首次作答、播放次数和微技能表现。样本少时只显示“样本积累中”，不会过早给你下结论。</div></div>';
+      return;
+    }
+
+    const skillRows = SKILL_TAXONOMY.map(skill => {
+      const s = agg.stats[skill.key];
+      if (!s) return "";
+      const avg = s.attempts ? (s.plays / s.attempts).toFixed(1) : "0.0";
+      const label = s.attempts < 6 ? "样本积累中" : (s.correct / s.attempts >= .8 ? "近期较稳" : s.correct / s.attempts >= .6 ? "继续观察" : "建议加强");
+      return '<div class="skillrow"><div class="skilltop"><b>'+escapeHTML(skill.cn)+'</b><span class="skillstate">'+label+'</span></div><div class="skillnote">'+s.correct+'/'+s.attempts+' 首次正确 · 答题前平均播放 '+avg+' 次</div></div>';
+    }).join("");
+
+    const latest = agg.latest || {};
+    const selfRating = latest.pre != null || latest.post != null
+      ? '<div class="profilemetrics"><div class="metric"><b>'+(latest.pre == null ? "—" : latest.pre+"%")+'</b><small>最近首次自评</small></div><div class="metric"><b>'+(latest.post == null ? "—" : latest.post+"%")+'</b><small>最近最终自评</small></div></div>'
+      : "";
+
+    target.innerHTML = '<div class="profilehistory"><b>已记录 '+agg.sessionCount+' 次训练</b><small>数据保存在当前浏览器</small></div>'+selfRating+'<div class="skillsum">'+skillRows+'</div>';
+  }
+
+  function activeSkill() {
+    return LESSON.skills.find(s => s.key === activeSkillKey) || null;
+  }
+
+  function singleSkillSummary(skill) {
+    if (!skill) return "";
+    const status = skillStatus(skill.items.map(isCorrect));
+    return '<div class="skillsum"><div class="skillrow"><div class="skilltop"><b>'+escapeHTML(skill.name)+'</b><span class="skillstate">'+escapeHTML(status.s)+'</span></div><div class="skillnote">'+escapeHTML(status.n)+'</div></div></div>';
+  }
+
+  function currentBehaviorSummary() {
+    const q = sessionMetrics ? Object.values(sessionMetrics.questions || {}) : [];
+    const answered = q.length;
+    const correct = q.filter(x => x.correct).length;
+    const playbackTotal = sessionMetrics ? Object.values(sessionMetrics.playback || {}).reduce((a,b) => a + b, 0) : 0;
+    const avgPlays = answered ? q.reduce((sum,x) => sum + (x.playsBeforeAnswer || 0), 0) / answered : 0;
+    return {answered,correct,playbackTotal,avgPlays};
+  }
+
+  function behaviorSummaryHtml() {
+    const b = currentBehaviorSummary();
+    if (!b.answered) return "";
+    return '<div class="diagnostic"><div><b>'+b.correct+'/'+b.answered+'</b><small>首次作答正确</small></div><div><b>'+b.playbackTotal+'</b><small>播放启动次数</small></div><div><b>'+b.avgPlays.toFixed(1)+'</b><small>答题前平均播放</small></div></div>';
+  }
+
+  function sessionSkillResults() {
+    if (!LESSON) return [];
+    return LESSON.skills.map(skill => {
+      const items = skill.items.map(isCorrect);
+      const status = skillStatus(items);
+      return {key:skill.key,name:skill.name,status:status.s,note:status.n,score:items.filter(Boolean).length,total:items.length};
+    });
+  }
+
+  function finalizeSession() {
+    if (!sessionMetrics) return;
+    sessionMetrics.completedAt = new Date().toISOString();
+    sessionMetrics.pre = pre;
+    sessionMetrics.post = post;
+    sessionMetrics.skillResults = trainingMode === "skill"
+      ? sessionSkillResults().filter(x => x.key === activeSkillKey)
+      : sessionSkillResults();
+    const history = readHistory();
+    history.sessions.push(sessionMetrics);
+    writeHistory(history);
+  }
+
+  function aggregateSkillStats() {
+    const history = readHistory();
+    const stats = {};
+    history.sessions.forEach(session => {
+      Object.values(session.questions || {}).forEach(q => {
+        if (!q.skillKey) return;
+        if (!stats[q.skillKey]) stats[q.skillKey] = {attempts:0,correct:0,plays:0};
+        stats[q.skillKey].attempts++;
+        if (q.correct) stats[q.skillKey].correct++;
+        stats[q.skillKey].plays += q.playsBeforeAnswer || 0;
+      });
+    });
+    return {sessionCount:history.sessions.length,stats,latest:history.sessions[history.sessions.length-1] || null};
+  }
+
+  function resultHtml() {
+    if (trainingMode === "skill") {
+      const skill = activeSkill();
+      return `<div class="card"><div class="pill">专项训练完成</div><h2>${escapeHTML(skill ? skill.name : "微技能")}</h2><p class="muted">这次只看这一项微技能，不和其他能力混在一起。</p>${behaviorSummaryHtml()}<h3 style="margin-top:18px">本次表现</h3>${singleSkillSummary(skill)}</div>`;
+    }
+    return `<div class="card"><div class="pill">训练完成</div><h2>这次你解码了什么</h2><p class="muted">这里不做总分排名，而是结合首次作答和播放行为，看这一次哪些地方更容易卡住。</p>${compareBlock()}${behaviorSummaryHtml()}<h3 style="margin-top:18px">本次听力画像</h3>${skillSummary()}</div>`;
+  }
+
+  function showResult() {
+    hasCompletedSession = true;
+    finalizeSession();
+    $("lesson").classList.add("hidden");
+    $("home").classList.add("hidden");
+    $("result").classList.remove("hidden");
+    $("resultContent").innerHTML = resultHtml();
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  async function startMaterial(id) {
+    try {
+      await loadMaterial(id);
+      trainingMode = "lesson";
+      activeSkillKey = null;
+      beginSession("lesson", null);
+      $("home").classList.add("hidden");
+      $("result").classList.add("hidden");
+      $("lesson").classList.remove("hidden");
+      step = 0;
+      render();
+    } catch (err) {
+      console.error(err);
+      alert("素材加载失败，请刷新后重试。");
+    }
+  }
+
+  async function startSkill(key) {
+    const material = CATALOG.materials.find(m => (m.skills || []).includes(key));
+    if (!material) return;
+    try {
+      await loadMaterial(material.id);
+      const skill = LESSON.skills.find(s => s.key === key);
+      const targetStep = LESSON.steps.findIndex(s => s.skillKey === key);
+      if (!skill || targetStep < 0) return;
+      trainingMode = "skill";
+      activeSkillKey = key;
+      beginSession("skill", key);
+      $("home").classList.add("hidden");
+      $("result").classList.add("hidden");
+      $("lesson").classList.remove("hidden");
+      step = targetStep;
+      render();
+    } catch (err) {
+      console.error(err);
+      alert("专项训练加载失败，请刷新后重试。");
+    }
+  }
+  function next() {
+    if (step < LESSON.steps.length - 1) {
+      step++;
+      render();
+    }
+  }
+  function prev() { if (step > 0) { step--; render(); } }
+  function home() {
+    $("lesson").classList.add("hidden");
+    $("result").classList.add("hidden");
+    $("home").classList.remove("hidden");
+    trainingMode = "lesson";
+    activeSkillKey = null;
+    renderHomeProfile();
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+  function restart() {
+    const skillKey = trainingMode === "skill" ? activeSkillKey : null;
+    pre = null;
+    post = null;
+    Object.keys(ans).forEach(k => delete ans[k]);
+    Object.keys(inputValues).forEach(k => delete inputValues[k]);
+    if (skillKey) startSkill(skillKey);
+    else if (activeMaterialId) startMaterial(activeMaterialId);
+  }
+  function jump(i) {
+    $("home").classList.add("hidden");
+    $("result").classList.add("hidden");
+    $("lesson").classList.remove("hidden");
+    step = i;
+    render();
+  }
+
+  function jumps() {
+    if (!LESSON) return;
+    const h = LESSON.steps.map((s,i) => `<button type="button" class="jump" data-jump="${i}">${i+1}. ${escapeHTML(s.title)}</button>`).join("");
+    if ($("homeJump")) $("homeJump").innerHTML = h;
+    if ($("lessonJump")) $("lessonJump").innerHTML = h;
+  }
+
+  function speakFr(encoded, ref, speechRate) {
+    const text = decodeURIComponent(encoded);
+    recordPlay(ref);
+    if (!("speechSynthesis" in window)) {
+      alert("当前浏览器不支持语音播放，请使用 Chrome、Edge 或 Safari。");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "fr-FR";
+    u.rate = Number(speechRate || .92);
+    u.pitch = 1;
+    const voices = window.speechSynthesis.getVoices();
+    const fr = voices.find(v => /^fr[-_]/i.test(v.lang)) || voices.find(v => /français|french/i.test(v.name));
+    if (fr) u.voice = fr;
+    window.speechSynthesis.speak(u);
+  }
+
+  function findAudio(ref) {
+    return document.querySelector('audio[data-audio-ref="'+CSS.escape(ref)+'"]');
+  }
+
+  function handleAudioAction(button) {
+    const ref = button.dataset.audioRef || "";
+    const audio = findAudio(ref);
+    if (!audio) return;
+    const action = button.dataset.audioAction;
+    if (action === "play") {
+      audio.play();
+    } else if (action === "replay") {
+      audio.currentTime = 0;
+      audio.play();
+    } else if (action === "back") {
+      audio.currentTime = Math.max(0, audio.currentTime - 3);
+    } else if (action === "speed") {
+      audio.playbackRate = Number(button.dataset.speed || 1);
+      const group = button.parentElement;
+      if (group) group.querySelectorAll('[data-audio-action="speed"]').forEach(x => x.classList.toggle("active", x === button));
+    }
+  }
+
+  function choose(id, index) {
+    if (ans[id] !== undefined) return;
+    const q = questionIndex[id];
+    if (!q || q.type !== "mcq") return;
+    ans[id] = index;
+    recordQuestionAttempt(id, index === q.correct);
+    const group = $(id);
+    if (group) {
+      [...group.children].forEach((button, i) => {
+        button.classList.add("locked");
+        if (i === q.correct) button.classList.add("correct");
+        else if (i === index) button.classList.add("wrong");
+      });
+    }
+    const feedback = $(id + "F");
+    if (feedback) {
+      feedback.className = "feedback show";
+      feedback.innerHTML = (index === q.correct ? "✓ " : "再听一次。") + (q.feedback || "");
+    }
+  }
+
+  function checkInput(id) {
+    if (ans[id] !== undefined) return;
+    const q = questionIndex[id];
+    if (!q || q.type !== "input") return;
+    const el = $(id + "I");
+    const raw = el ? el.value : "";
+    inputValues[id] = raw;
+    const value = norm(raw);
+    const ok = (q.answers || []).some(a => norm(a) === value);
+    ans[id] = ok;
+    recordQuestionAttempt(id, ok);
+    if (el) el.disabled = true;
+    const checkButton = document.querySelector('[data-check-input="' + CSS.escape(id) + '"]');
+    if (checkButton) checkButton.disabled = true;
+    const feedback = $(id + "F");
+    if (feedback) {
+      const success = q.successHtml || ('✓ <span class="fr">' + escapeHTML(q.displayAnswer || q.answers[0]) + '</span>');
+      const failure = q.failureHtml || ('答案：<span class="fr">' + escapeHTML(q.displayAnswer || q.answers[0]) + '</span>');
+      feedback.className = "feedback show";
+      feedback.innerHTML = ok ? success : failure;
+    }
+  }
+
+  function rate(kind, value, button) {
+    if (kind === "pre") pre = value;
+    else post = value;
+    if (button && button.parentElement) {
+      [...button.parentElement.children].forEach(x => x.classList.remove("sel"));
+      button.classList.add("sel");
+    }
+    if (kind === "post" && $("cmp")) $("cmp").outerHTML = compareBlock();
+  }
+
+  function init() {
+    document.title = "解码法语 · Décoder le français";
+    renderMaterialLibrary();
+    renderSkillLibrary();
+    renderHomeProfile();
+    $("prevBtn").addEventListener("click", prev);
+    $("nextBtn").addEventListener("click", next);
+    $("finishBtn").addEventListener("click", showResult);
+    $("homeBtn").addEventListener("click", home);
+    $("resultHomeBtn").addEventListener("click", home);
+    $("restartBtn").addEventListener("click", restart);
+    document.addEventListener("click", e => {
+      const choice = e.target.closest("[data-choice-id]");
+      if (choice) return choose(choice.dataset.choiceId, Number(choice.dataset.choiceIndex));
+      const speak = e.target.closest("[data-speak]");
+      if (speak) return speakFr(speak.dataset.speak, speak.dataset.speakRef || null, speak.dataset.speakRate || .92);
+      const audioAction = e.target.closest("[data-audio-action]");
+      if (audioAction) return handleAudioAction(audioAction);
+      const check = e.target.closest("[data-check-input]");
+      if (check) return checkInput(check.dataset.checkInput);
+      const rateBtn = e.target.closest("[data-rate-kind]");
+      if (rateBtn) return rate(rateBtn.dataset.rateKind, Number(rateBtn.dataset.rateValue), rateBtn);
+      const materialBtn = e.target.closest("[data-start-material]");
+      if (materialBtn) return startMaterial(materialBtn.dataset.startMaterial);
+      const skillBtn = e.target.closest("[data-start-skill]");
+      if (skillBtn) return startSkill(skillBtn.dataset.startSkill);
+      const scrollBtn = e.target.closest("[data-scroll-target]");
+      if (scrollBtn) {
+        const target = $(scrollBtn.dataset.scrollTarget);
+        if (target) target.scrollIntoView({behavior:"smooth", block:"start"});
+        return;
+      }
+      const jumpBtn = e.target.closest("[data-jump]");
+      if (jumpBtn) return jump(Number(jumpBtn.dataset.jump));
+    });
+    document.addEventListener("play", e => {
+      const audio = e.target && e.target.matches && e.target.matches("audio[data-audio-ref]") ? e.target : null;
+      if (audio) recordPlay(audio.dataset.audioRef || null);
+    }, true);
+    document.addEventListener("input", e => {
+      const id = e.target && e.target.dataset ? e.target.dataset.inputValue : null;
+      if (id) inputValues[id] = e.target.value;
+    });
+  }
+
+  init();
+})();
