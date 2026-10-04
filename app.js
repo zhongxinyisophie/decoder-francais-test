@@ -289,6 +289,7 @@
     $("homeIntro").innerHTML = LESSON.meta.introHtml;
     $("homeDuration").textContent = LESSON.meta.duration;
     $("lessonName").textContent = LESSON.meta.title;
+    $("resultLessonName").textContent = LESSON.meta.title;
     $("lessonBadge").textContent = `${LESSON.meta.level} · ${LESSON.meta.audience}`;
     $("startBtn").addEventListener("click", start);
     $("prevBtn").addEventListener("click", prev);
