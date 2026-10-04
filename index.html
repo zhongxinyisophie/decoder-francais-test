@@ -2,15 +2,84 @@
 <style>
 :root{--bg:#f5f3ee;--card:#fff;--text:#202623;--muted:#6c756f;--line:#e6e0d6;--accent:#245a49;--soft:#e8f1ed;--ok:#176a49;--bad:#a2433f}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Noto Sans SC",Arial,sans-serif}.app{max-width:680px;margin:auto;padding:18px 14px 80px}.top{display:flex;justify-content:space-between;align-items:center}.brand{font-weight:850}.badge{font-size:12px;background:var(--soft);color:var(--accent);padding:6px 9px;border-radius:999px}.hero{padding:28px 4px 14px}h1{font-size:30px;margin:4px 0}h2{margin:5px 0}h3{margin:0 0 10px}.muted{color:var(--muted);line-height:1.55}.card,.drill{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 8px 28px rgba(30,40,35,.05)}.drill{border-radius:14px;box-shadow:none}.drillhead{display:flex;gap:8px;align-items:center;margin-bottom:8px}.num{width:25px;height:25px;border-radius:50%;background:var(--soft);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:12px}audio{width:100%;margin:9px 0}.q{font-weight:760;margin:12px 0 8px}.choices{display:grid;gap:8px}.choice,.btn,.mini,.jump{appearance:none;border:1px solid var(--line);background:#fff;border-radius:12px;padding:11px 12px;text-align:left;font-size:14px;color:var(--text)}.choice:active,.btn:active{transform:scale(.99)}.choice.correct{border-color:var(--ok);background:#edf7f2}.choice.wrong{border-color:var(--bad);background:#faeeee}.choice.locked{pointer-events:none}.feedback{display:none;margin-top:9px;padding:10px 12px;border-radius:11px;background:#f6f4ef;line-height:1.5;font-size:14px}.feedback.show{display:block}.fr{font-family:Georgia,"Times New Roman",serif}.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.btn{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;text-align:center}.btn.secondary{background:#fff;color:var(--accent)}.mini{padding:7px 10px;font-size:12px}.hidden{display:none}.stephead{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}.progress{height:6px;background:#e4e0d8;border-radius:99px;margin:10px 0 16px;overflow:hidden}.progress i{height:100%;display:block;background:var(--accent);width:0}.scale{display:flex;gap:6px}.scale button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 2px}.scale button.sel{background:var(--accent);color:#fff}.input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:16px}details{margin-top:12px}summary{cursor:pointer;color:var(--accent);font-weight:700}.jumpgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.jump{text-align:center}.compare{display:flex;justify-content:space-around;align-items:center;background:var(--soft);padding:14px;border-radius:14px;margin-top:14px}.compare b{font-size:25px}.pill{display:inline-block;background:var(--soft);color:var(--accent);font-size:12px;padding:5px 8px;border-radius:99px;margin-bottom:8px}@media(max-width:430px){.jumpgrid{grid-template-columns:1fr}}
 .synth{width:100%;margin:9px 0;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--accent);font-weight:700;text-align:left;cursor:pointer}.synth:active{transform:scale(.99)}.skillsum{display:grid;gap:8px;margin-top:12px}.skillrow{border:1px solid var(--line);border-radius:12px;padding:11px 12px}.skilltop{display:flex;justify-content:space-between;gap:10px;align-items:center}.skillstate{font-size:12px;font-weight:800;background:var(--soft);color:var(--accent);padding:4px 7px;border-radius:999px}.skillnote{margin-top:5px;font-size:13px;line-height:1.5;color:var(--muted)}
+
+.producthero{padding-bottom:18px}.producthero h1{font-size:34px;line-height:1.14;max-width:620px}
+.modegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:8px 0 28px}
+.modecard{appearance:none;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:15px;text-align:left;color:var(--text);cursor:pointer;box-shadow:0 5px 18px rgba(30,40,35,.035);min-height:128px}
+.modecard b{display:block;font-size:16px;margin:8px 0 5px}.modecard small{display:block;color:var(--muted);line-height:1.45}
+.modeicon{display:inline-grid;place-items:center;width:31px;height:31px;border-radius:10px;background:var(--soft);color:var(--accent);font-size:11px;font-weight:850}
+.homeSection{margin-top:30px;scroll-margin-top:18px}.sectionhead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:5px}.sectionhead h2{font-size:24px}.eyebrow{color:var(--accent);font-weight:800}.countchip{font-size:12px;background:#ece8df;color:var(--muted);padding:5px 8px;border-radius:999px}.sectionintro{margin-top:6px}
+.materialcard{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-top:14px;box-shadow:0 8px 28px rgba(30,40,35,.05)}
+.materialcard h3{font-family:Georgia,"Times New Roman",serif;font-size:24px;margin:8px 0}.materialtop{display:flex;justify-content:space-between;align-items:center}.duration{font-size:13px;color:var(--muted)}
+.tagrow{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.tag{font-size:12px;border:1px solid var(--line);background:#faf9f6;padding:5px 8px;border-radius:999px}.tag.skilltag{background:var(--soft);color:var(--accent);border-color:transparent}.wide{width:100%;margin-top:7px}
+.skillLibrary{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.skillcard{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:13px}.skillcard.available{border-color:#cddfd7}.skillcardtop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.skillcard b{display:block}.skillfr{font-size:12px;color:var(--muted);margin-top:2px}.skilldesc{font-size:13px;line-height:1.45;color:var(--muted);margin-top:8px}.skillcount{white-space:nowrap;font-size:11px;padding:4px 7px;border-radius:999px;background:#f1eee7;color:var(--muted)}.skillcard.available .skillcount{background:var(--soft);color:var(--accent);font-weight:750}
+.profilehome{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px}.profileempty{padding:8px 1px}.profileempty b{display:block;margin-bottom:6px}.profilemetrics{display:flex;gap:8px;margin-bottom:12px}.metric{flex:1;background:var(--soft);border-radius:12px;padding:11px;text-align:center}.metric b{display:block;font-size:22px;color:var(--accent)}.metric small{color:var(--muted)}
+.devtools{margin-top:28px}
+@media(max-width:560px){.modegrid{grid-template-columns:1fr}.modecard{min-height:auto}.skillLibrary{grid-template-columns:1fr}.producthero h1{font-size:30px}}
 </style></head><body><div class="app">
 <div class="top"><div class="brand">解码法语听力</div><div class="badge" id="lessonBadge">B1–B2 · 中文母语者</div></div>
-<section id="home"><div class="hero"><div class="pill">Décoder l’écoute</div><h1 id="homeTitle">L’IA à l’école</h1><p class="muted" id="homeIntro"></p></div><div class="card"><h3 id="homeDuration">约 12–15 分钟</h3><button class="btn" id="startBtn">开始练习</button></div><details><summary>直接测试任意模块</summary><div id="homeJump" class="jumpgrid"></div></details></section>
+<section id="home">
+  <div class="hero producthero">
+    <div class="pill">Décoder le français</div>
+    <h1>听懂法语，先找出为什么没听出来。</h1>
+    <p class="muted">从约一分钟的真实法语音频出发，把“没听懂”拆成具体的听力问题：语块、语境词义、逻辑、句型、时态、否定、真实口语和连读衔接。</p>
+  </div>
+
+  <div class="modegrid">
+    <button type="button" class="modecard" data-scroll-target="materialsSection">
+      <span class="modeicon">01</span><b>按素材训练</b>
+      <small>完整听一段，再拆解真正卡住你的地方</small>
+    </button>
+    <button type="button" class="modecard" data-scroll-target="skillsSection">
+      <span class="modeicon">02</span><b>按微技能训练</b>
+      <small>以后从不同音频中连续练同一种听力能力</small>
+    </button>
+    <button type="button" class="modecard" data-scroll-target="profileSection">
+      <span class="modeicon">03</span><b>听力画像</b>
+      <small>不是总分，而是看自己具体容易漏掉什么</small>
+    </button>
+  </div>
+
+  <div class="homeSection" id="materialsSection">
+    <div class="sectionhead">
+      <div><small class="eyebrow">Bibliothèque</small><h2>素材库</h2></div>
+      <span class="countchip">1 段可练</span>
+    </div>
+    <p class="muted sectionintro">每段约 45–75 秒。每个音频只训练它真正值得训练的微技能，不强行覆盖全部项目。</p>
+    <div class="materialcard">
+      <div class="materialtop"><span class="pill">B1–B2</span><span class="duration" id="materialDuration"></span></div>
+      <h3 id="materialTitle">L’IA à l’école</h3>
+      <p class="muted" id="materialIntro"></p>
+      <div class="tagrow" id="materialTopics"></div>
+      <div class="tagrow skills" id="materialSkills"></div>
+      <button class="btn wide" id="startBtn">开始这段训练</button>
+    </div>
+  </div>
+
+  <div class="homeSection" id="skillsSection">
+    <div class="sectionhead">
+      <div><small class="eyebrow">Micro-compétences</small><h2>微技能库</h2></div>
+      <span class="countchip">8 类</span>
+    </div>
+    <p class="muted sectionintro">未来的专项训练会从多段不同素材中抽取 8–12 个短片段连续训练。当前先显示完整技能地图，以及这一版已经有素材覆盖的项目。</p>
+    <div class="skillLibrary" id="skillLibrary"></div>
+  </div>
+
+  <div class="homeSection" id="profileSection">
+    <div class="sectionhead">
+      <div><small class="eyebrow">Profil d’écoute</small><h2>我的听力画像</h2></div>
+    </div>
+    <div class="profilehome" id="profileHome"></div>
+  </div>
+
+  <details class="devtools"><summary>开发测试 · 直接跳转模块</summary><div id="homeJump" class="jumpgrid"></div></details>
+</section>
 <section id="lesson" class="hidden"><div class="stephead"><div><small id="lessonName" style="color:var(--accent)">L’IA à l’école</small><h2 id="title"></h2></div><small id="count"></small></div><div class="progress"><i id="bar"></i></div><div id="content"></div><div class="btnrow"><button class="btn secondary" id="prevBtn">上一步</button><button class="btn" id="nextBtn">下一步</button><button class="btn hidden" id="finishBtn">完成本次训练</button><button class="mini" id="homeBtn">退出</button></div><details><summary>测试跳转</summary><div id="lessonJump" class="jumpgrid"></div></details></section>
 <section id="result" class="hidden">
   <div class="stephead"><div><small id="resultLessonName" style="color:var(--accent)">L’IA à l’école</small><h2>本次训练完成</h2></div></div>
   <div id="resultContent"></div>
   <div class="btnrow"><button class="btn secondary" id="restartBtn">重新练习</button><button class="btn" id="resultHomeBtn">返回首页</button></div>
 </section></div>
-<script src="data/lesson-ia-ecole-v2.js"></script>
-<script src="app-v2.js"></script>
+<script src="data/lesson-ia-ecole-v2.js?v=home-v1"></script>
+<script src="app-v3.js"></script>
 </body></html>
