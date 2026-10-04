@@ -154,23 +154,55 @@
     $("count").textContent = `${step + 1} / ${LESSON.steps.length}`;
     $("bar").style.width = `${(step + 1) / LESSON.steps.length * 100}%`;
     $("content").innerHTML = renderStep(s);
+    $("nextBtn").textContent = step === LESSON.steps.length - 1 ? "完成本次训练" : "下一步";
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  function resultHtml() {
+    return `<div class="card"><div class="pill">训练完成</div><h2>这次你解码了什么</h2><p class="muted">这里不做总分排名，只看哪些听力微技能已经比较稳定，哪些值得继续练。</p>${compareBlock()}<h3 style="margin-top:18px">本次听力画像</h3>${skillSummary()}</div>`;
+  }
+
+  function showResult() {
+    $("lesson").classList.add("hidden");
+    $("home").classList.add("hidden");
+    $("result").classList.remove("hidden");
+    $("resultContent").innerHTML = resultHtml();
     window.scrollTo({top:0, behavior:"smooth"});
   }
 
   function start() {
     $("home").classList.add("hidden");
+    $("result").classList.add("hidden");
     $("lesson").classList.remove("hidden");
     step = 0;
     render();
   }
-  function next() { if (step < LESSON.steps.length - 1) { step++; render(); } }
+  function next() {
+    if (step < LESSON.steps.length - 1) {
+      step++;
+      render();
+    } else {
+      showResult();
+    }
+  }
   function prev() { if (step > 0) { step--; render(); } }
   function home() {
     $("lesson").classList.add("hidden");
+    $("result").classList.add("hidden");
     $("home").classList.remove("hidden");
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+  function restart() {
+    step = 0;
+    pre = null;
+    post = null;
+    Object.keys(ans).forEach(k => delete ans[k]);
+    Object.keys(inputValues).forEach(k => delete inputValues[k]);
+    start();
   }
   function jump(i) {
     $("home").classList.add("hidden");
+    $("result").classList.add("hidden");
     $("lesson").classList.remove("hidden");
     step = i;
     render();
@@ -262,6 +294,8 @@
     $("prevBtn").addEventListener("click", prev);
     $("nextBtn").addEventListener("click", next);
     $("homeBtn").addEventListener("click", home);
+    $("resultHomeBtn").addEventListener("click", home);
+    $("restartBtn").addEventListener("click", restart);
     document.addEventListener("click", e => {
       const choice = e.target.closest("[data-choice-id]");
       if (choice) return choose(choice.dataset.choiceId, Number(choice.dataset.choiceIndex));
