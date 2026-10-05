@@ -31,59 +31,56 @@
 .relationprofile{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}.relationprofilehead{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}.relationprofilehead small{color:var(--muted)}.relationprofilerow{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #eeeae2}.relationprofilerow:last-child{border-bottom:0}.relationprofiletop{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.relationprofiletop b{font-size:13px}.relationprofiletop span{font-size:10px;padding:3px 6px;border-radius:999px;background:var(--soft);color:var(--accent);font-weight:800}.relationprofilerow small{display:block;color:var(--muted);font-size:11px;margin-top:3px}.relationprofilerow button{appearance:none;border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:9px;padding:6px 8px;font-size:11px;font-weight:750;white-space:nowrap;cursor:pointer}
 
 .backtotop{position:fixed;right:max(14px,calc((100vw - 680px)/2 + 14px));bottom:calc(16px + env(safe-area-inset-bottom));z-index:30;appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.94);color:var(--accent);border-radius:999px;padding:9px 12px;font:inherit;font-size:12px;font-weight:800;box-shadow:0 6px 20px rgba(30,40,35,.10);cursor:pointer;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .18s ease,transform .18s ease}.backtotop.show{opacity:1;transform:translateY(0);pointer-events:auto}.backtotop:active{transform:scale(.98)}@media(max-width:430px){.backtotop{right:12px;bottom:calc(12px + env(safe-area-inset-bottom));padding:8px 10px}}
+
+.taskhero{padding:34px 4px 18px;text-align:left}.taskhero h1{max-width:560px;margin-top:5px}.taskhero p{max-width:520px;margin:10px 0 20px}.primarycta{display:block;width:100%;max-width:360px;padding:14px 18px;font-size:16px;text-align:center;border-radius:14px}.herometa{font-size:12px;color:var(--muted);margin-top:9px}
+.quicknav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 24px}.quicknav button{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.72);border-radius:13px;padding:12px 11px;text-align:left;color:var(--text);cursor:pointer}.quicknav button.active{border-color:#b9d2c8;background:var(--soft)}.quicknav b{display:block;font-size:14px}.quicknav small{display:block;color:var(--muted);font-size:11px;margin-top:3px;line-height:1.35}
+.homeSection{margin-top:18px;scroll-margin-top:14px}.sectionclose{appearance:none;border:0;background:transparent;color:var(--muted);font-size:24px;line-height:1;padding:2px 4px;cursor:pointer}.sectionintro{margin:5px 0 10px}.homeSection .sectionhead{align-items:flex-start}
+@media(max-width:560px){.quicknav{grid-template-columns:repeat(3,1fr);gap:6px}.quicknav button{padding:10px 8px}.quicknav b{font-size:13px}.quicknav small{font-size:10px}.taskhero{padding-top:26px}.primarycta{max-width:none}}
+@media(max-width:380px){.quicknav{grid-template-columns:1fr}.quicknav button{display:flex;justify-content:space-between;align-items:center;gap:8px}.quicknav small{margin-top:0;text-align:right}}
 </style></head><body><div class="app">
 <div class="top"><div class="brand">解码法语</div><div class="badge" id="lessonBadge">B1–B2 · 中文母语者</div></div>
 <section id="home">
-  <div class="hero producthero">
+  <div class="hero producthero taskhero">
     <div class="pill">Décoder le français</div>
     <h1>听懂法语，先找出为什么没听出来。</h1>
-    <p class="muted">用真实法语音频，找出你究竟卡在声音、词义、结构还是逻辑。</p>
+    <p class="muted">用真实法语音频，找出你卡在声音、词义、结构还是逻辑。</p>
+    <button type="button" class="btn primarycta" data-start-recommended>开始今天的训练</button>
+    <div class="herometa">B1–B2 · 约 10 分钟</div>
   </div>
 
-  <div class="modegrid">
-    <button type="button" class="modecard" data-scroll-target="materialsSection">
-      <span class="modeicon">01</span><b>完整训练</b>
-      <small>完整听一段，再拆解卡住你的地方</small>
-    </button>
-    <button type="button" class="modecard" data-scroll-target="skillsSection">
-      <span class="modeicon">02</span><b>专项训练</b>
-      <small>集中练一个最容易卡住的听力问题</small>
-    </button>
-    <button type="button" class="modecard" data-scroll-target="profileSection">
-      <span class="modeicon">03</span><b>我的听力</b>
-      <small>看看哪里听得稳，哪里还容易漏</small>
-    </button>
-  </div>
+  <nav class="quicknav" aria-label="首页功能">
+    <button type="button" data-home-panel="skillsSection"><b>专项训练</b><small>集中练一个难点</small></button>
+    <button type="button" data-home-panel="materialsSection"><b>听力素材</b><small>自己选择内容</small></button>
+    <button type="button" data-home-panel="profileSection"><b>我的听力</b><small>查看听力分析</small></button>
+  </nav>
 
-  <div class="homeSection" id="materialsSection">
+  <div class="homeSection hidden" id="skillsSection">
     <div class="sectionhead">
-      <div><small class="eyebrow">Bibliothèque</small><h2>听力素材</h2></div>
-      <span class="countchip">1 段可练</span>
+      <div><small class="eyebrow">专项训练</small><h2>你想练哪一项？</h2></div>
+      <button type="button" class="sectionclose" data-close-home-panel aria-label="关闭">×</button>
     </div>
-    <p class="muted sectionintro">每段约 45–75 秒，只练这段音频里最值得练的听力难点。</p>
-    <div id="materialLibrary"></div>
-  </div>
-
-  <div class="homeSection" id="skillsSection">
-    <div class="sectionhead">
-      <div><small class="eyebrow">Micro-compétences</small><h2>专项训练</h2></div>
-      <span class="countchip">8 类</span>
-    </div>
-    <p class="muted sectionintro">选择一个听力难点集中练习。暂无素材的项目会标为“待扩充”。</p>
+    <p class="muted sectionintro">选择一个最容易卡住的地方集中练习。</p>
     <div class="skillLibrary" id="skillLibrary"></div>
     <div id="relationPanel" class="relationpanel hidden"></div>
   </div>
 
-  <div class="homeSection" id="profileSection">
+  <div class="homeSection hidden" id="materialsSection">
     <div class="sectionhead">
-      <div><small class="eyebrow">Profil d’écoute</small><h2>听力分析</h2></div>
+      <div><small class="eyebrow">听力素材</small><h2>选择一段开始</h2></div>
+      <button type="button" class="sectionclose" data-close-home-panel aria-label="关闭">×</button>
+    </div>
+    <div id="materialLibrary"></div>
+  </div>
+
+  <div class="homeSection hidden" id="profileSection">
+    <div class="sectionhead">
+      <div><small class="eyebrow">我的听力</small><h2>听力分析</h2></div>
+      <button type="button" class="sectionclose" data-close-home-panel aria-label="关闭">×</button>
     </div>
     <div class="profilehome" id="profileHome"></div>
   </div>
-
-  <details class="devtools"><summary>开发测试 · 直接跳转模块</summary><div id="homeJump" class="jumpgrid"></div></details>
 </section>
-<section id="lesson" class="hidden"><div class="stephead"><div><small id="lessonName" style="color:var(--accent)">L’IA à l’école</small><h2 id="title"></h2></div><small id="count"></small></div><div class="progress"><i id="bar"></i></div><div id="content"></div><div class="btnrow"><button class="btn secondary" id="prevBtn">上一步</button><button class="btn" id="nextBtn">下一步</button><button class="btn hidden" id="finishBtn">完成本次训练</button><button class="mini" id="homeBtn">退出</button></div><details><summary>测试跳转</summary><div id="lessonJump" class="jumpgrid"></div></details></section>
+<section id="lesson" class="hidden"><div class="stephead"><div><small id="lessonName" style="color:var(--accent)">L’IA à l’école</small><h2 id="title"></h2></div><small id="count"></small></div><div class="progress"><i id="bar"></i></div><div id="content"></div><div class="btnrow"><button class="btn secondary" id="prevBtn">上一步</button><button class="btn" id="nextBtn">下一步</button><button class="btn hidden" id="finishBtn">完成本次训练</button><button class="mini" id="homeBtn">退出</button></div></section>
 <section id="result" class="hidden">
   <div class="stephead"><div><small id="resultLessonName" style="color:var(--accent)">L’IA à l’école</small><h2>本次训练完成</h2></div></div>
   <div id="resultContent"></div>
@@ -91,5 +88,5 @@
 </section></div>
 <button type="button" id="backToTop" class="backtotop" aria-label="回到顶部">↑ 回到顶部</button>
 <script src="data/catalog.js?v=3"></script>
-<script src="app-v11.js"></script>
+<script src="app-v12.js"></script>
 </body></html>
