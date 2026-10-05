@@ -403,7 +403,16 @@
       }
       const current = unitIndex + 1;
       const total = units.length || 1;
-      $("count").textContent = current + " / " + total;
+      if (drills.length) {
+        const localCurrent = (drillIndex == null ? 0 : drillIndex) + 1;
+        $("count").textContent = localCurrent + " / " + drills.length;
+      } else if (step === 0) {
+        $("count").textContent = "开始";
+      } else if (step === LESSON.steps.length - 1) {
+        $("count").textContent = "最后一步";
+      } else {
+        $("count").textContent = "";
+      }
       $("bar").style.width = (current / total * 100) + "%";
       const isFirst = unitIndex <= 0;
       const isLast = unitIndex >= total - 1;
