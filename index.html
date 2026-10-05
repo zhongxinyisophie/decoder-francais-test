@@ -24,6 +24,9 @@
 .synthplayer{padding:10px 12px}.synthline{display:flex;align-items:center;gap:9px}.smallplay{width:36px;height:36px;font-size:14px;box-shadow:none}.synthlabel{font-size:13px;font-weight:700;color:var(--text);flex:1}
 .diagnostic{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}.diagnostic>div{background:var(--soft);border-radius:12px;padding:11px 8px;text-align:center}.diagnostic b{display:block;font-size:20px;color:var(--accent)}.diagnostic small{display:block;color:var(--muted);font-size:11px;line-height:1.35;margin-top:3px}.profilehistory{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}.profilehistory small{color:var(--muted)}
 @media(max-width:430px){.diagnostic{grid-template-columns:1fr}.miniplayer{gap:8px}.speedseg{margin-left:0}.timecode{min-width:58px}}
+
+.relationpanel{margin-top:14px;padding:17px;background:#f0eee8;border:1px solid var(--line);border-radius:18px;scroll-margin-top:18px}.relationhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.relationhead h3{font-size:20px;margin-top:3px}.relationclose{appearance:none;border:0;background:transparent;color:var(--muted);font-size:25px;line-height:1;cursor:pointer;padding:1px 5px}.relationintro{margin:7px 0 13px}.relationgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.relationcard{appearance:none;width:100%;border:1px solid var(--line);background:#f8f7f3;border-radius:13px;padding:12px;text-align:left;color:var(--text);font:inherit}.relationcard.available{background:#fff;cursor:pointer;border-color:#cddfd7}.relationcard.available:active{transform:scale(.995)}.relationtop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.relationtop b{display:block;font-size:14px}.relationtop small{display:block;color:var(--muted);font-size:11px;margin-top:2px}.relationcard p{font-size:12px;color:var(--muted);line-height:1.45;margin:8px 0 0}.relationcta{display:block;color:var(--accent);font-size:11px;font-weight:800;margin-top:9px}
+@media(max-width:560px){.relationgrid{grid-template-columns:1fr}}
 </style></head><body><div class="app">
 <div class="top"><div class="brand">解码法语听力</div><div class="badge" id="lessonBadge">B1–B2 · 中文母语者</div></div>
 <section id="home">
@@ -64,6 +67,7 @@
     </div>
     <p class="muted sectionintro">未来的专项训练会从多段不同素材中抽取 8–12 个短片段连续训练。当前先显示完整技能地图，以及这一版已经有素材覆盖的项目。</p>
     <div class="skillLibrary" id="skillLibrary"></div>
+    <div id="relationPanel" class="relationpanel hidden"></div>
   </div>
 
   <div class="homeSection" id="profileSection">
@@ -81,6 +85,6 @@
   <div id="resultContent"></div>
   <div class="btnrow"><button class="btn secondary" id="restartBtn">重新练习</button><button class="btn" id="resultHomeBtn">返回首页</button></div>
 </section></div>
-<script src="data/catalog.js?v=1"></script>
-<script src="app-v7.js"></script>
+<script src="data/catalog.js?v=2"></script>
+<script src="app-v8.js"></script>
 </body></html>
